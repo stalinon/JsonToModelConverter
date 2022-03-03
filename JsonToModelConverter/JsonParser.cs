@@ -44,7 +44,7 @@ namespace JsonToModelConverter
                     if (appendEscapeCharacter)
                         stringBuilder.Append(json[i]);
                     stringBuilder.Append(json[i + 1]);
-                    i++;//Skip next character as it is escaped
+                    i++;
                 }
                 else if (json[i] == '"')
                 {
@@ -127,6 +127,10 @@ namespace JsonToModelConverter
             else if (value.Contains("\""))
             {
                 return "string";
+            }
+            else if (value.Contains("true") || value.Contains("false"))
+            {
+                return "bool";
             }
             else if (value.Contains("."))
             {

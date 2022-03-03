@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-using System.Text;
+﻿using System.Text;
 using System.Text.RegularExpressions;
 
 namespace JsonToModelConverter
@@ -8,13 +7,13 @@ namespace JsonToModelConverter
     {
         private static Stack<List<string>> splitArrayPool;
         private static StringBuilder stringBuilder;
-        private static Dictionary<string, string> pairs;  
+        private static Dictionary<int, Dictionary<string, string>> pairs;
+        private static int depth = 0;
 
         public static string FromJson(this string json, string className)
         {
             if (stringBuilder == null) stringBuilder = new StringBuilder();
             if (splitArrayPool == null) splitArrayPool = new Stack<List<string>>();
-            if (pairs == null) pairs = new Dictionary<string, string>();
 
             stringBuilder.Length = 0;
             for (int i = 0; i < json.Length; i++)
@@ -30,7 +29,7 @@ namespace JsonToModelConverter
 
                 stringBuilder.Append(c);
             }
-            Split(stringBuilder.ToString());
+            var list = Split(stringBuilder.ToString());
             return GenerateModel(className);
         }
 
@@ -57,9 +56,12 @@ namespace JsonToModelConverter
             return json.Length - 1;
         }
 
-        private static List<string> Split(string json)
+        private static List<string> Split(string json, bool isArray = false)
         {
-            List<string> splitArray = splitArrayPool.Count > 0 ? splitArrayPool.Pop() : new List<string>();
+            if (pairs == null) pairs = new Dictionary<int, Dictionary<string, string>>();
+            if (!pairs.ContainsKey(depth)) pairs[depth] = new Dictionary<string, string>();
+
+            var splitArray = splitArrayPool.Count > 0 ? splitArrayPool.Pop() : new List<string>();
             splitArray.Clear();
             if (json.Length == 2)
                 return splitArray;
@@ -95,34 +97,63 @@ namespace JsonToModelConverter
             }
 
             splitArray.Add(stringBuilder.ToString());
+            PutTypesIntoPairs(splitArray, isArray);
 
+            return splitArray;
+        }
+
+        private static void PutTypesIntoPairs(List<string> splitArray, bool isArray = false)
+        {
+            if (isArray) return;
             string key = default;
             string value = default;
             for (var i = 0; i < splitArray.Count; i++)
             {
-                if (i%2==0)
+                if (i % 2 == 0)
                 {
                     key = splitArray[i].Trim('\"');
                 }
                 else
                 {
-                    value = GetTypeOf(splitArray[i]);
-                    pairs.Add(key, value);
+                    value = GetTypeOf(splitArray[i], key);
+                    if (!pairs[depth].TryAdd(key, value))
+                        break;
                 }
             }
-
-            return splitArray;
         }
 
-        private static string GetTypeOf(string value)
+        private static string GetTypeOf(string value, string key)
         {
-            if (value == "\"null\"")
+            if (value.StartsWith('[') && value.EndsWith(']'))
+            {
+                var keyPascal = key.ToPascalCase();
+
+                var list = Split(value, true);
+
+                if (!value.Contains('{'))
+                {
+                    value = value.Split('[',']',',').First();
+                    return $"IEnumerable<{GetTypeOf(value, keyPascal)}>";
+                }
+
+                depth++;
+                list.First().FromJson(keyPascal);
+                depth--;
+                return $"IEnumerable<{keyPascal}>";
+            }
+            else if (value.StartsWith("{") && value.EndsWith("}"))
+            {
+                var keyPascal = key.ToPascalCase();
+
+                depth++;
+                value.FromJson(keyPascal);
+                depth--;
+
+                return keyPascal;
+            }
+            else if (value == "\"null\"")
             {
                 return "string";
-            }
-            else if (value.Contains("[") && value.Contains("]"))
-            {
-                return "IEnumerable<object>";
             }
             else if (value.Contains("\""))
             {
@@ -144,11 +175,10 @@ namespace JsonToModelConverter
 
         private static string GenerateModel(string className, bool JsonProperty = true)
         {
-            var TI = new CultureInfo("en-US", false).TextInfo;
             var sb = new StringBuilder();
-            var classDecl = $"public class {TI.ToTitleCase(className)}\n{{\n";
+            var classDecl = $"public class {className.ToPascalCase()}\n{{\n";
             sb.Append(classDecl);
-            foreach (var variable in pairs)
+            foreach (var variable in pairs[depth])
             {
                 var field = $"\tpublic {variable.Value} {variable.Key.ToPascalCase()} {{ get; set; }}\n\n";
 
@@ -160,7 +190,33 @@ namespace JsonToModelConverter
 
                 sb.Append(field);
             }
+            pairs[depth] = new Dictionary<string, string>();
+
             sb.Append("}");
+
+            string classText = string.Empty;
+
+            Directory.CreateDirectory("../../../../GeneratedModels/");
+
+            var path = Path.GetFullPath($"../../../../GeneratedModels/{className.ToPascalCase()}.cs");
+            var append = File.Exists(path);
+
+            if (append)
+            {
+                using (var sw = new StreamReader(path))
+                {
+                    classText = sw.ReadToEnd();
+                    classText = classText.Remove(classText.Length - 1, 1);
+                }
+            }
+
+            classText += sb.ToString();
+
+            using (var sw = new StreamWriter(path))
+            {
+                
+                sw.WriteLine(classText);
+            }
 
             return sb.ToString();
         }

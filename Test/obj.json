@@ -1,8 +1,25 @@
 ﻿{
-  "Id": 1123,
-  "Status": "Готово",
-  "Version": "12",
-  "PreEstimate": 110.0,
-  "Estimate": 110.0,
-  "HasSmf": true
+  "title": "Product",
+  "description": "A product from Acme's catalog",
+  "type": 1,
+  "properties": {
+    "productId": {
+      "description": "The unique identifier for a product",
+      "type": "integer"
+    }
+  },
+  "required": [
+    {
+      "type": "text",
+      "text": "items:"
+    },
+    {
+      "type": "text",
+      "text": "items:"
+    },
+    {
+        "type": "text",
+        "text": "items:"
+    }
+  ]
 }

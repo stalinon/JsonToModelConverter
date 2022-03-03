@@ -3,7 +3,7 @@
 
 ## Пример работы.
 Запуск проекта Test со следующим кодом.
-```
+```csharp
 using JsonToModelConverter;
 
 var path = Path.GetFullPath("./../../../obj.json");

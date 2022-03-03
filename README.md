@@ -12,7 +12,7 @@ var elem = json.FromJson("Example");
 Console.WriteLine(elem);
 ```
 Вывод в консоль:
-```
+```csharp
 public class Example
 {
         [JsonProperty("Id")]
@@ -31,7 +31,7 @@ public class Example
         public double Estimate { get; set; }
 
         [JsonProperty("HasSmf")]
-        public int HasSmf { get; set; }
+        public bool HasSmf { get; set; }
 
 }
 ```

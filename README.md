@@ -12,7 +12,7 @@ var elem = json.FromJson("Example");
 Console.WriteLine(elem);
 ```
 Вывод в консоль:
-```csharp
+```
 public class Example
 {
         [JsonProperty("Id")]
